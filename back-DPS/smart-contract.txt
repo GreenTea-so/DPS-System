@@ -1,0 +1,320 @@
+//Разработали студенты ТКМП Львов А.Д. и Смрнов А.К.
+//SPDX-License-Identifier: Alexei & Andrei
+pragma solidity ^0.7.0;
+
+contract dps{
+    
+    struct Car{
+        address adr_driver;
+        string category;
+        uint price;
+        uint srok;
+    }
+    
+    struct Drive{
+        string drive_number;
+        address payable adr_driver;
+        uint srok;
+        string category;
+    }
+    
+    struct Shtraf{
+        bool sost;
+        uint time;
+    }
+    
+    struct MSG{
+        string content;
+        uint time;
+    }
+    
+    struct DTP{
+        uint summ;
+        uint time;
+    }
+    
+    struct User{
+        bool reg;
+        bool avto;
+        string login;
+        string FIO;
+        uint staj;
+        uint Dtp;
+        Car[] cars;
+        Shtraf[] shtrafs;
+        MSG[] msg;
+        DTP[] dtp;
+        string drive_number;
+        uint shtraf_dest;
+        uint strah_vznos;
+        uint strah_summ;
+        uint role;
+    }
+    
+    uint unix = block.timestamp;
+    
+    address payable null_adr = 0x0000000000000000000000000000000000000000;
+     
+    mapping(address=>User) users;
+    mapping(string=>address) logins;
+    
+    mapping(string=>Drive) drives;
+    
+    address payable bank_adr = 0xD3e049Db62233E80F44E7A5a3e75F1474e609D1B;
+    address payable company_adr = 0x6aF0a1DdD80F9607B0597bE17278F4F1185e0a32;
+    uint dolg = 0;
+    
+    Drive[] input_drive;
+    Car[] input_car;
+
+    constructor()public{
+        logins["bank"] = bank_adr;
+        logins["company"] = company_adr;
+        
+        drives["000"].srok = 1641859200;
+        drives["000"].category = "A";
+        drives["111"].srok = 1747008000;
+        drives["111"].category = "B";
+        drives["222"].srok = 1614384000;
+        drives["222"].category = "C";
+        drives["333"].srok = 1802476800;
+        drives["333"].category = "A";
+        drives["444"].srok = 1796947200;
+        drives["444"].category = "B";
+        drives["555"].srok = 1876953600;
+        drives["555"].category = "C";
+        drives["666"].srok = 1901145600;
+        drives["666"].category = "A";
+        
+        create_user(0xaB99C81ce2D46CaB783E0756Ab81267D713e8c26, "lol1", "Ivanov Ivan Ivanovich", 2, 0, 0, 0);
+        users[0xaB99C81ce2D46CaB783E0756Ab81267D713e8c26].role = 1;
+        create_user(0x60AB9f012c2D6Fd321053dB27a6223eA1D321E24, "lol2", "Semenov Semen Semenovich", 5, 0, 0, 0);
+        create_user(0x87b149e579d4FB88E9A5b6122692ECCF786d0276, "lol3", "Petrov Petr Petrovich", 10, 3, 0, 0);
+    }
+    
+    //создание пользователя
+    function create_user(address _adr, string memory _login, string memory _FIO, uint _staj, uint _DTP, uint _shtraf_dest, uint _strah_vznos)public{
+        require(logins[_login] == null_adr, "Login is busy");
+        require(users[_adr].reg == false, "Error adr");
+        users[_adr].reg = true;
+        users[_adr].login = _login;
+        users[_adr].FIO = _FIO;
+        users[_adr].staj = block.timestamp / (60 * 60 * 24 * 30 * 12) + 1970 - _staj;
+        users[_adr].Dtp = _DTP;
+        users[_adr].shtraf_dest = _shtraf_dest;
+        users[_adr].strah_vznos = _strah_vznos;
+        logins[_login] = _adr;
+        for(uint i=0; i<_shtraf_dest; i++){
+            users[_adr].shtrafs.push(Shtraf(true, 0));
+        }
+    }
+    
+    //измение состояние ввода
+     function avto()public{
+         users[msg.sender].avto = !users[msg.sender].avto;
+     }
+    
+    //просмотр штрафа
+    function check_shtraf(uint _id_shtraf)public view returns(bool sost, uint time){
+        return(users[msg.sender].shtrafs[_id_shtraf].sost, users[msg.sender].shtrafs[_id_shtraf].time);
+    }
+    
+    //просмотр пользователя    
+    function check_user()public view returns(string memory FIO, string memory drive_number, uint staj, uint dtp, uint _shtraf_dest, uint strah_vznos, uint role, uint strah_summ, bool avto){
+        return(users[msg.sender].FIO, users[msg.sender].drive_number, users[msg.sender].staj, users[msg.sender].Dtp, users[msg.sender].shtraf_dest, users[msg.sender].strah_vznos, users[msg.sender].role, users[msg.sender].strah_summ, users[msg.sender].avto);
+    }
+    
+    //просмотр длины объектов
+    function check_lens()public view returns(uint len_car, uint len_shtrafs, uint len_msg, uint len_dtp, uint len_input_drive, uint len_input_car){
+        return(users[msg.sender].cars.length, users[msg.sender].shtrafs.length, users[msg.sender].msg.length, users[msg.sender].dtp.length, input_drive.length, input_car.length);
+    }
+    
+    //возврат адрес по логину
+    function return_adr(string memory _login)public view returns(address adr){
+        return(logins[_login]);
+    }
+    
+    //просмотр сообщений от ДПС
+    function check_msg(uint _id_msg)public view returns(string memory content, uint time){
+        return(users[msg.sender].msg[_id_msg].content, users[msg.sender].msg[_id_msg].time);
+    }
+    
+    //добавление водительского удостоверения
+    function drive_add(string memory _drive_number, uint _srok, string memory _category)public returns(uint){
+        require(users[msg.sender].reg == true, "Error adr");
+        if (drives[_drive_number].adr_driver != null_adr){
+            users[msg.sender].msg.push(MSG("Error add Liccense. Liccense is busy", block.timestamp));
+            return 0;
+        }
+        if (users[msg.sender].avto){
+            input_drive.push(Drive(_drive_number, msg.sender, _srok, _category));
+            return 0;
+        }
+        if (_srok != drives[_drive_number].srok){
+            users[msg.sender].msg.push(MSG("Error add Liccense. Uncorrect srok", block.timestamp));
+            return 0;
+        }
+        if (keccak256(abi.encodePacked(_category)) != keccak256(abi.encodePacked(drives[_drive_number].category))){
+            users[msg.sender].msg.push(MSG("Error add Liccense. Uncorrect category", block.timestamp));
+            return 0;
+        }
+        drives[_drive_number].adr_driver = msg.sender;
+        users[msg.sender].drive_number = _drive_number;
+    }
+    
+    //просмотр заявления на регистрацию ВУ (сотрудник ДПС)
+    function check_input_drive(uint _id_input)public view returns(string memory drive_number, address adr, uint srok, string memory category){
+        require(users[msg.sender].role ==1, "Error, u are not DPS");
+        return(input_drive[_id_input].drive_number, input_drive[_id_input].adr_driver, input_drive[_id_input].srok, input_drive[_id_input].category);
+    }
+    
+    //Подверждение или отказ регистрации ВУ (сотрудник ДПС)
+    function drive_add_dps(uint _id_input, bool sost)public{
+        require(users[msg.sender].role ==1, "Error, u are not DPS");
+       // require(drives[input_drive[_id_input].drive_number].adr_driver == null_adr, "Error, Liccense is busy");
+        if(sost){
+            drives[input_drive[_id_input].drive_number].adr_driver = input_drive[_id_input].adr_driver;
+            users[input_drive[_id_input].adr_driver].drive_number = input_drive[_id_input].drive_number;
+        }
+        else{
+            users[input_drive[_id_input].adr_driver].msg.push(MSG("Cancel drive add", block.timestamp));
+        }
+        delete input_drive[_id_input];
+    }
+    
+    
+    //просмотр водительского удостоверения
+    function check_drive(string memory _drive_number)public view returns(address adr, uint srok, string memory category){
+        return(drives[_drive_number].adr_driver, drives[_drive_number].srok, drives[_drive_number].category);
+    }
+    
+    //регистрация ТС
+    function registr_car(string memory _category, uint _price, uint _srok)public returns(uint){
+        require(keccak256(abi.encodePacked(users[msg.sender].drive_number)) != keccak256(abi.encodePacked("")), "Error. U not have Liccense");
+        string memory _drive_number = users[msg.sender].drive_number;
+        if (users[msg.sender].avto){
+            input_car.push(Car(msg.sender, _category, _price, _srok));
+            return 0;
+        }
+        if (users[msg.sender].avto){
+            input_car.push(Car(msg.sender, _category, _price, _srok));
+            return 0;
+        }
+        if (keccak256(abi.encodePacked(drives[_drive_number].category)) != keccak256(abi.encodePacked(_category))){
+            users[msg.sender].msg.push(MSG("Error registr car. Uncorrect category", block.timestamp));
+            return 0;
+        }
+        users[msg.sender].cars.push(Car(msg.sender, _category, _price, _srok));
+    }
+    
+    function registr_car_dps(uint _id_input, bool _sost)public{
+        require(users[msg.sender].role ==1, "Error, u are not DPS");
+        if(_sost){
+            users[input_car[_id_input].adr_driver].cars.push(Car(input_car[_id_input].adr_driver, input_car[_id_input].category, input_car[_id_input].price, input_car[_id_input].srok));
+        }
+        else{
+            users[input_car[_id_input].adr_driver].msg.push(MSG("Cancel registr car", block.timestamp));
+        }
+        delete input_car[_id_input];
+    }
+    
+    function check_input_car(uint _id_input)public view returns(address adr, string memory category){
+        require(users[msg.sender].role ==1, "Error, u are not DPS");
+        return(input_car[_id_input].adr_driver, input_car[_id_input].category);
+    }
+    
+    //просмотр ТС
+    function check_car(uint _id_car)public view returns(address adr, string memory category, uint price, uint srok){
+        return(users[msg.sender].cars[_id_car].adr_driver, users[msg.sender].cars[_id_car].category, users[msg.sender].cars[_id_car].price, users[msg.sender].cars[_id_car].srok);
+    }
+    
+    //продление водительского удостоверения
+    function update_srok()public returns(uint){
+        require(keccak256(abi.encodePacked(users[msg.sender].drive_number)) != keccak256(abi.encodePacked("")), "Error. U not have Liccense");
+        string memory _drive_number = users[msg.sender].drive_number;
+        if (drives[_drive_number].srok - 60 * 60 * 24 * 30 >block.timestamp){
+            users[msg.sender].msg.push(MSG("Error update srok, Uncorrect srok", block.timestamp));
+            return 0;
+        }
+        if (users[msg.sender].shtraf_dest != 0){
+            users[msg.sender].msg.push(MSG("Error update srok, Uncorrect shtrafs", block.timestamp));
+            return 0;
+        }
+        drives[_drive_number].srok = block.timestamp + (60 * 60 * 24 * 30 * 12 * 10);
+    }
+    
+    //оформление штрафа (сотрудник ДПС)
+    function shtraf_dps(string memory _drive_number)public{
+        require(users[msg.sender].role == 1, "Error, u have not DPS");
+        address _adr = drives[_drive_number].adr_driver;
+        users[_adr].shtraf_dest++;
+        users[_adr].shtrafs.push(Shtraf(true, block.timestamp));
+    }
+    
+    //оплата штрафа (водитель)
+    function shtraf_driver(uint _id_shtraf)public payable{
+        require(users[msg.sender].shtrafs[_id_shtraf].sost == true, "Error, shtraf is pay");
+        require(msg.value == 10 ether, "Error count");
+        if (users[msg.sender].shtrafs[_id_shtraf].time + 50 > block.timestamp){
+            msg.sender.transfer(5 ether);
+            bank_adr.transfer(5 ether);
+        }
+        else{
+            bank_adr.transfer(10 ether);
+        }
+        users[msg.sender].shtrafs[_id_shtraf].sost = false;
+        users[msg.sender].shtraf_dest --;
+    }
+    
+    //подсчет суммы страховки
+    function strahovka(uint _id_car)public{
+        require(keccak256(abi.encodePacked(users[msg.sender].drive_number)) != keccak256(abi.encodePacked("")), "Error. U not have Liccense");
+        require(users[msg.sender].cars.length != 0, "Error, u have not car");
+        require(users[msg.sender].strah_vznos == 0, "Error, u have strahovka vznos");
+        users[msg.sender].strah_summ = ((users[msg.sender].cars[_id_car].price * 10 / 1 ether) * uint(10 - users[msg.sender].cars[_id_car].srok) + 200 * users[msg.sender].shtraf_dest + users[msg.sender].Dtp * 1000 - 200 * ((block.timestamp / (60 * 60 * 24 * 30 * 12)) + 1970 - users[msg.sender].staj)) * 1 ether / 1000 ;
+    }
+    
+    //оформление страховки
+    function strahovka_vznos()public payable{
+        require(msg.value == users[msg.sender].strah_summ, "Error count");
+        if (dolg == 0 || dolg > msg.value){
+            company_adr.transfer(msg.value);
+        }
+        if (dolg > 0 && dolg < msg.value){
+            bank_adr.transfer(dolg);
+            company_adr.transfer(msg.value - dolg);
+            dolg=0;
+        }
+        users[msg.sender].strah_vznos = msg.value;
+        users[msg.sender].strah_summ = 0;
+    }
+    
+    //оформление ДТП
+    function dtp(string memory _drive_number)public{
+        require(users[msg.sender].role == 1, "Error, u are not DPS");
+        address _adr = drives[_drive_number].adr_driver;
+        users[_adr].Dtp ++;
+        users[_adr].dtp.push(DTP(users[_adr].strah_vznos * 10, block.timestamp));
+    }
+    
+    
+    //просмотр истории страховки
+    function check_dtp(uint _id_dtp)public view returns(uint summ, uint time){
+        return(users[msg.sender].dtp[_id_dtp].summ, users[msg.sender].dtp[_id_dtp].time);
+    }
+    
+    //выплата страховки
+    function dtp_pay(string memory _drive_number)public payable{
+        require(company_adr == msg.sender, "Error, u are not company");
+        require(msg.value == (users[drives[_drive_number].adr_driver].strah_vznos * 10),"Error count");
+        drives[_drive_number].adr_driver.transfer(msg.value);
+    }
+   
+    //занять долг у банка
+    function dolg_bank(string memory _drive_number)public payable{
+        require(bank_adr == msg.sender, "Error, u are not bank");
+        //require(msg.value == (users[drives[_drive_number].adr_driver].strah_vznos * 10) - company_adr.balance + 1 ether, "Error count");
+        company_adr.transfer(msg.value);
+        dolg += msg.value;
+    }
+}

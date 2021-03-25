@@ -1,0 +1,1 @@
+geth --rpc -rpcaddr "192.168.21.107" --rpcapi "net, web3, personal, miner, eth, admin" --networkid 15 --datadir "C:\geth2" --allow-insecure-unlock --rpccorsdomain "*" console
